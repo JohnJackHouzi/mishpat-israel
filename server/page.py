@@ -2,11 +2,14 @@ import html
 import os
 import time
 
+import abonnement
+
 SITE = os.environ.get("MISHPAT_PUBLIC_URL", "https://mishpat.studjoow.com").rstrip("/")
 MCP_URL = SITE + "/mcp"
 OLB = "https://he.wikisource.org/wiki/%D7%95%D7%99%D7%A7%D7%99%D7%98%D7%A7%D7%A1%D7%98:%D7%A1%D7%A4%D7%A8_%D7%94%D7%97%D7%95%D7%A7%D7%99%D7%9D_%D7%94%D7%A4%D7%AA%D7%95%D7%97"
 CC = "https://creativecommons.org/licenses/by-sa/4.0/"
 REPO = os.environ.get("MISHPAT_REPO_URL", "https://github.com/JohnJackHouzi/mishpat-israel")
+LIEN_ABONNEMENT = os.environ.get("MISHPAT_LIEN_ABONNEMENT", "").strip()
 
 FONTS = """@font-face{font-family:'Instrument Serif';font-style:normal;font-weight:400;font-display:swap;src:url(/static/fonts/instrument-serif-normal-400.woff2) format('woff2')}
 @font-face{font-family:'Plus Jakarta Sans';font-style:normal;font-weight:400 700;font-display:swap;src:url(/static/fonts/plus-jakarta-sans-normal-400-700.woff2) format('woff2')}
@@ -45,6 +48,15 @@ h2{font:400 34px/1.1 var(--serif);margin:0 0 18px}
 .card code{font:13px var(--mono);color:var(--accent)}
 .warn{background:var(--warn);border:1px solid var(--warnline);border-radius:14px;padding:18px;color:var(--fg)}
 .stats{display:flex;flex-wrap:wrap;gap:24px;margin-top:8px}
+.prix-grille{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
+.offre{background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:22px;display:flex;flex-direction:column;gap:8px}
+.offre.mise{border-color:var(--accent);box-shadow:0 14px 34px -22px var(--accent)}
+.offre h3{margin:0;font-size:15px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.offre .montant{font:400 40px/1 var(--serif);color:var(--fg)}.offre .montant small{font:14px var(--sans);color:var(--muted)}
+.offre ul{margin:6px 0 10px;padding-inline-start:18px;color:var(--ink);font-size:14.5px}
+.btn{display:inline-block;text-align:center;font:600 15px var(--sans);border-radius:10px;padding:11px 16px;text-decoration:none;border:1px solid var(--accent)}
+.btn-1{background:var(--accent);color:#fff}.btn-2{background:transparent;color:var(--accent)}
+.btn[aria-disabled=true]{opacity:.55;pointer-events:none}
 .stats div{min-width:140px}.stats b{display:block;font:400 34px var(--serif);color:var(--accent)}
 .stats span{color:var(--muted);font-size:14px}
 ol.steps{padding-inline-start:20px}ol.steps li{margin-bottom:8px}
@@ -93,6 +105,15 @@ T = {
             "Legal information, not legal advice. For a specific situation, consult an Israeli lawyer.",
         ],
         "data_h": "Data",
+        "pricing_h": "Pricing",
+        "trial": ("Free trial", "%d requests per day on the public address, no sign-up."),
+        "plans": {"particulier": "Personal", "pro": "Pro", "pro-an": "Pro yearly"},
+        "per": {"month": "month", "year": "year"},
+        "perks": {"particulier": ["%s requests per day", "All tools and sources", "Sign in from Claude or ChatGPT"],
+                  "pro": ["%s requests per day", "Professional use, invoice to your company", "Priority e-mail support"],
+                  "pro-an": ["%s requests per day", "Two months free", "Invoice to your company"]},
+        "subscribe": "Subscribe", "soon": "Opening soon", "account": "Already subscribed? My account",
+        "vat": "Prices in shekels include VAT. No commitment: cancel at any time.",
         "texts": "texts", "sections": "sections", "sync": "last sync", "knesset": "Knesset data up to",
         "sources": "Sources and licences",
         "src": [
@@ -143,6 +164,15 @@ T = {
             "מידע משפטי בלבד ולא ייעוץ משפטי. במקרה קונקרטי יש לפנות לעורך דין.",
         ],
         "data_h": "נתונים",
+        "pricing_h": "מחירים",
+        "trial": ("ניסיון חינם", "%d בקשות ביום בכתובת הציבורית, ללא הרשמה."),
+        "plans": {"particulier": "פרטי", "pro": "Pro", "pro-an": "Pro שנתי"},
+        "per": {"month": "חודש", "year": "שנה"},
+        "perks": {"particulier": ["%s בקשות ביום", "כל הכלים והמקורות", "התחברות מתוך Claude או ChatGPT"],
+                  "pro": ["%s בקשות ביום", "שימוש מקצועי, חשבונית על שם החברה", "תמיכה מועדפת בדוא״ל"],
+                  "pro-an": ["%s בקשות ביום", "חודשיים חינם", "חשבונית על שם החברה"]},
+        "subscribe": "להרשמה", "soon": "בקרוב", "account": "כבר מנויים? החשבון שלי",
+        "vat": "המחירים בשקלים כוללים מע״מ. ללא התחייבות: ביטול בכל עת.",
         "texts": "דברי חקיקה", "sections": "סעיפים", "sync": "סנכרון אחרון", "knesset": "נתוני הכנסת עד",
         "sources": "מקורות ורישיונות",
         "src": [
@@ -157,6 +187,21 @@ T = {
 }
 
 _cache = {}
+
+
+def tarifs(lang):
+    t = T[lang]
+    cartes = ['<div class=offre><h3>%s</h3><div class=montant>0</div><p>%s</p></div>'
+              % (html.escape(t["trial"][0]), html.escape(t["trial"][1] % abonnement.ESSAI_PAR_JOUR))]
+    for k, o in abonnement.OFFRES.items():
+        perks = "".join("<li>%s</li>" % html.escape(x % "{:,}".format(o["plafond"]) if "%s" in x else x) for x in t["perks"][k])
+        bouton = ('<a class="btn btn-1" href="%s?offre=%s">%s</a>' % (LIEN_ABONNEMENT, k, t["subscribe"]) if LIEN_ABONNEMENT
+                  else '<a class="btn btn-2" aria-disabled=true>%s</a>' % t["soon"])
+        cartes.append('<div class="offre%s"><h3>%s</h3><div class=montant><bdi>%s</bdi> <small>/ %s</small></div><ul>%s</ul>%s</div>'
+                      % (" mise" if k == "particulier" else "", html.escape(t["plans"][k]), html.escape(abonnement.montant(o)),
+                         t["per"][o["intervalle"]], perks, bouton))
+    return ('<div class=prix-grille>%s</div><p class=note>%s <a href="/compte">%s</a></p>'
+            % ("".join(cartes), html.escape(t["vat"]), html.escape(t["account"])))
 
 
 def render(etat_fn, lang="en"):
@@ -200,6 +245,7 @@ def render(etat_fn, lang="en"):
 <section><h2>{t['limits_h']}</h2><div class=warn><ul>{li(esc(x) for x in t['limits'])}</ul></div></section>
 <section><h2>{t['what_h']}</h2><div class=grid>{cards(t['what'])}</div></section>
 <section><h2>{t['tools_h']}</h2><div class=grid>{tools}</div></section>
+<section id=pricing><h2>{t['pricing_h']}</h2>{tarifs(lang)}</section>
 <section><h2>{t['data_h']}</h2>{stats}</section>
 <section><h2>{t['sources']}</h2><ul>{li(t['src'])}</ul></section>
 </main>
@@ -233,3 +279,372 @@ def llms(etat_fn):
     out += ["", "## Sources", "- Open Law Book, Hebrew Wikisource, CC BY-SA 4.0: " + OLB,
             "- Knesset OData API; Reshumot official PDFs", "", "Published by Studjoow (https://studjoow.com)."]
     return "\n".join(out) + "\n"
+
+
+# ---------------------------------------------------------------- abonnement, compte, pages légales
+
+EDITEUR = ("John Houzi, trading as Studjoow, licensed dealer in Israel (Osek Murshe), "
+           "Tax ID 337927834, 49 Abarbanel, Tel Aviv 6608912, Israel")
+CONTACT = "hello@studjoow.com"
+
+CSS_DOC = """
+.doc{max-width:760px;padding:28px 0 40px}
+.doc h1{font:400 clamp(40px,6vw,60px)/1.05 var(--serif);margin:0 0 18px}
+.doc h2{font:400 28px/1.15 var(--serif);margin:36px 0 10px}
+.doc h3{font:600 17px var(--sans);margin:22px 0 8px}
+.doc p,.doc li{color:var(--ink)}
+.maj{font:12.5px var(--mono);color:var(--muted)}
+.carte{background:var(--paper);border:1px solid var(--line);border-radius:18px;padding:26px 24px;margin:20px 0;max-width:640px}
+.carte h2{margin-top:0}
+.coche{display:flex;gap:12px;align-items:flex-start;margin:14px 0;font-size:15px;color:var(--ink)}
+.coche input{margin-top:4px;width:18px;height:18px;accent-color:var(--accent);flex:none}
+.champ{width:100%;font:15px var(--mono);padding:12px 14px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--fg)}
+.alerte{border-left:3px solid #bf000f;background:var(--paper);padding:12px 16px;border-radius:0 10px 10px 0;margin:14px 0}
+.info{border-left:3px solid #00a06d;background:var(--paper);padding:12px 16px;border-radius:0 10px 10px 0;margin:14px 0}
+.statut{font:600 12px var(--mono);letter-spacing:.1em;text-transform:uppercase;padding:4px 8px;border-radius:6px;border:1.5px solid currentColor}
+.statut.actif{color:#00a06d}.statut.suspendu{color:#f99c00}.statut.revoque{color:#bf000f}
+dl.fiche{display:grid;grid-template-columns:150px 1fr;gap:8px 16px;margin:18px 0;font-size:15px}
+dl.fiche dt{color:var(--muted)}dl.fiche dd{margin:0}
+.choix-offres{display:flex;gap:8px;flex-wrap:wrap;margin:18px 0 0}
+.choix{font:500 13.5px var(--sans);text-decoration:none;border:1px solid var(--line);border-radius:999px;padding:8px 14px;color:var(--ink);background:var(--paper)}
+.choix.actif{border-color:var(--accent);color:var(--accent);font-weight:600}
+form.ligne{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}form.ligne .champ{flex:1;min-width:200px}
+.mini{font-size:13.5px;color:var(--muted)}
+.url-perso{display:flex;gap:8px;flex-wrap:wrap;align-items:center;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:12px}
+.url-perso code{font:14px var(--mono);word-break:break-all;flex:1}
+button.btn{cursor:pointer}
+@media (max-width:480px){dl.fiche{grid-template-columns:1fr}}
+"""
+
+
+def nombre(n):
+    return "{:,}".format(n)
+
+
+def gabarit(titre, contenu, description="", indexer=True):
+    e = html.escape
+    return f"""<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{e(titre)} · Mishpat by Studjoow</title><meta name="description" content="{e(description or titre)}">
+<meta name="robots" content="{'index,follow' if indexer else 'noindex,nofollow'}"><meta name="theme-color" content="#040e30">
+<link rel="icon" href="/favicon.ico"><link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<style>{FONTS}{CSS}{CSS_DOC}</style></head><body>
+<header class=top><div class=wrap><a class=brand href="/"><img src="/static/icones/icone-192.png" alt="">Mishpat by Studjoow</a>
+<span class=lang><a href="/compte">My account</a></span></div></header>
+<main class="wrap doc">{contenu}</main>
+<footer><div class=wrap><p>Published by Studjoow. <a href="https://studjoow.com">studjoow.com</a></p>
+<p><a href="/terms">Terms</a> · <a href="/privacy">Privacy</a> · <a href="/legal">Legal notice</a> · <a href="/compte">My account</a></p>
+<p>Legal information, not legal advice.</p></div></footer></body></html>"""
+
+
+def page_ferme():
+    return gabarit("Subscriptions opening soon", "<h1>Soon.</h1><p>Subscriptions open shortly. Meanwhile the free trial "
+                   "remains available on the public address <code>%s/mcp</code>.</p>"
+                   '<p><a class="btn btn-2" href="/">Back to home</a></p>' % SITE, indexer=False)
+
+
+def _periode(o):
+    return "month" if o["intervalle"] == "month" else "year"
+
+
+def page_abonnement(erreur=None, offre="particulier"):
+    o = abonnement.OFFRES.get(offre, abonnement.OFFRES["particulier"])
+    alerte = '<p class="alerte">%s</p>' % html.escape(erreur) if erreur else ""
+    pro = offre != "particulier"
+    avantages = ("<li>%s requests per day per personal address (and at most 60 per minute)</li>" % nombre(o["plafond"])
+                 + ("<li>Invoice in your company's name: company name and VAT number asked at payment</li>"
+                    "<li>Priority e-mail support</li>" if pro else "")
+                 + "<li>All tools and sources; legislation updated every night</li>"
+                 + "<li>No commitment: cancel at any time from your account</li>")
+    choix = "".join('<a class="choix%s" href="/abonnement?offre=%s">%s · %s / %s</a>'
+                    % (" actif" if k == offre else "", k, x["nom"], abonnement.montant(x), _periode(x))
+                    for k, x in abonnement.OFFRES.items())
+    return gabarit("Subscribe", """<h1>Subscribe.</h1>
+<p>Israeli legislation, section by section, in Claude, ChatGPT and any MCP-compatible assistant.</p>
+<nav class="choix-offres" aria-label="Plans">%s</nav>
+<div class="carte">
+<p class="mini">%s plan</p>
+<p class="offre" style="border:0;padding:0;background:none"><span class=montant><bdi>%s</bdi> <small>/ %s</small></span></p>
+<ul>%s</ul>
+%s
+<form method="post" action="/abonnement?offre=%s">
+<input type="hidden" name="offre" value="%s">
+<label class="coche"><input type="checkbox" name="cgv" value="1" required><span>I accept the <a href="/terms" target="_blank">Terms of service</a> and have read the <a href="/privacy" target="_blank">Privacy policy</a>.</span></label>
+<label class="coche"><input type="checkbox" name="execution" value="1" required><span>I want to use the service right away. If I cancel within 14 days, I am refunded minus the days already used.</span></label>
+<p><button class="btn btn-1" type="submit">Pay <bdi>%s</bdi> and get my access</button></p>
+<p class="mini">Secure payment by Stripe. Your card details never pass through our servers.</p>
+</form>
+</div>
+<p class="mini">Already subscribed? <a href="/compte">Manage my subscription</a>. The code is open source: <a href="%s">self-hosting</a> is free.</p>
+""" % (choix, html.escape(o["nom"]), abonnement.montant(o), _periode(o), avantages, alerte, offre, offre,
+       abonnement.montant(o), REPO), "%s plan of the Mishpat by Studjoow MCP server." % o["nom"], indexer=False)
+
+
+def _copier(url):
+    e = html.escape(url)
+    return ('<div class="url-perso"><code id="u">%s</code><button type="button" class="btn btn-1" '
+            "onclick=\"navigator.clipboard.writeText(document.getElementById('u').textContent).then(()=>{this.textContent='Copied'})\">"
+            "Copy</button></div>" % e)
+
+
+INSTALLER = """<h2>Connect with your account</h2>
+<ol><li><b>Claude</b>: Settings, Connectors, <b>Add custom connector</b>. Address: <code>%s/abonne/mcp</code>, then <b>Connect</b>: enter your e-mail and the code you receive.</li>
+<li><b>ChatGPT</b>: Settings, Apps and connectors, <b>Create</b> a connector with the same address, OAuth authentication.</li>
+<li><b>Without sign-in</b> (Claude Code, Cursor, older clients): paste your personal address shown above instead.</li></ol>
+<p>If you were using the public trial address, replace it.</p>""" % SITE
+
+
+def page_merci(url, message=None, email=None, envoye=False):
+    if not url:
+        return gabarit("Subscription", "<h1>Subscription.</h1><p class=\"info\">%s</p>"
+                       '<p><a class="btn btn-1" href="/compte">My account</a></p>' % html.escape(message or ""), indexer=False)
+    courriel = ("<p>A copy has just been sent to <b>%s</b>.</p>" % html.escape(email)) if envoye and email else \
+        "<p>Copy it now: it will not be shown on this page again.</p>"
+    return gabarit("Thank you", """<h1>Thank you.</h1>
+<p>Your subscription is active. Simplest: add the connector <code>%s/abonne/mcp</code> and sign in with your e-mail (see below). For clients without sign-in, here is your personal address:</p>
+%s
+<p class="alerte"><b>Shown only once.</b> Keep it to yourself: it gives access to your subscription. If in doubt, regenerate it from <a href="/compte">your account</a>.</p>
+%s
+%s
+<p class="mini">Manage or cancel at any time: <a href="/compte">My account</a>. Legal information, not legal advice.</p>
+""" % (SITE, _copier(url), courriel, INSTALLER), indexer=False)
+
+
+def page_compte(erreur=None, info=None):
+    bloc = ('<p class="alerte">%s</p>' % html.escape(erreur)) if erreur else ('<p class="info">%s</p>' % html.escape(info) if info else "")
+    return gabarit("My account", """<h1>My account.</h1>
+%s
+<div class="carte"><h2>I have my personal address</h2>
+<p>Paste it to see the status of your subscription, manage it, cancel it or regenerate the address.</p>
+<form class="ligne" method="post" action="/compte"><input class="champ" name="adresse" placeholder="%s/mcp/..." autocomplete="off" required><button class="btn btn-1" type="submit">Open</button></form></div>
+<div class="carte"><h2>I lost my address</h2>
+<p>Enter the e-mail used for payment: you will receive an access link valid for one hour.</p>
+<form class="ligne" method="post" action="/compte/lien"><input class="champ" type="email" name="email" placeholder="you@example.com" autocomplete="email" required><button class="btn btn-2" type="submit">Get a link</button></form></div>
+<p class="mini">Not subscribed yet? <a href="/abonnement">Subscribe from <bdi>%s</bdi> per month</a>.</p>
+""" % (bloc, SITE, abonnement.montant(abonnement.OFFRES["particulier"])), indexer=False)
+
+
+def _date(s):
+    return "%s/%s/%s" % (s[8:10], s[5:7], s[:4]) if s else "unknown"
+
+
+def page_gestion(row, url, nouvelle=False, info=None):
+    import oauth
+    e = html.escape
+    o = abonnement.offre_de(row)
+    libelles = {"actif": "Active", "suspendu": "Suspended (payment failed)", "revoque": "Ended"}
+    fin = ("Cancellation scheduled on %s" if row["resiliation_prevue"] else "Next payment on %s") % _date(row["fin_periode"])
+    if row["statut"] == "revoque":
+        fin = "Ended on %s" % _date(row["maj_le"])
+    email = row["email"] or ""
+    if "@" in email:
+        nom, dom = email.split("@", 1)
+        email = nom[:2] + "•" * max(len(nom) - 2, 1) + "@" + dom
+    cache = '<input type="hidden" name="adresse" value="%s">' % e(url)
+    lignes = oauth.assistants_connectes(row["abonnement"])
+    assistants = ("<ul>%s</ul>" % "".join("<li><b>%s</b> · connected on %s</li>" % (e(l["nom"]), _date(l["dernier"])) for l in lignes)
+                  if lignes else '<p class="mini">No assistant connected with « Connect ». Add the connector %s/abonne/mcp in Claude or ChatGPT.</p>' % SITE)
+    if info:
+        assistants = '<p class="info">%s</p>' % e(info) + assistants
+    adresse_html = (_copier(url) + '<p class="info">New address created: the old one no longer works. Replace it in your connectors.</p>') if nouvelle else \
+        '<p class="mini">Personal address: <code>%s/mcp/%s…</code></p>' % (SITE, e(url.rsplit("/", 1)[1][:6]))
+    return gabarit("My subscription", """<h1>My subscription.</h1>
+<div class="carte">
+<p><span class="statut %s">%s</span></p>
+<dl class="fiche"><dt>Plan</dt><dd>%s · <bdi>%s</bdi> per %s · %s requests per day</dd><dt>E-mail</dt><dd>%s</dd><dt>Billing</dt><dd>%s</dd><dt>Subscriber since</dt><dd>%s</dd></dl>
+%s
+<form class="ligne" method="post" action="/compte/portail">%s<button class="btn btn-1" type="submit">Manage payment or cancel</button></form>
+<form class="ligne" method="post" action="/compte/regenerer" onsubmit="return confirm('The current address will stop working. Continue?')">%s<button class="btn btn-2" type="submit">Regenerate my address</button></form>
+<p class="mini">Payment, invoices and cancellation are handled on Stripe's secure portal.</p>
+</div>
+<div class="carte"><h2>Connected assistants</h2>%s
+<form class="ligne" method="post" action="/compte/deconnecter">%s<button class="btn btn-2" type="submit">Disconnect all my assistants</button></form></div>
+%s""" % (e(row["statut"]), libelles.get(row["statut"], row["statut"]), e(o["nom"]), e(abonnement.montant(o)), _periode(o),
+         nombre(o["plafond"]), e(email), fin, _date(row["cree_le"]), adresse_html, cache, cache, assistants, cache,
+         INSTALLER if nouvelle else ""), indexer=False)
+
+
+def terms():
+    ofs = abonnement.OFFRES
+    return gabarit("Terms of service", """<h1>Terms of service.</h1>
+<p class="maj">Effective 23 October 2026</p>
+<h2>1. Provider</h2>
+<p>These terms govern the subscription to « Mishpat by Studjoow », available at %(site)s, provided by %(editeur)s (« Studjoow »). Contact: <a href="mailto:%(contact)s">%(contact)s</a>.</p>
+<h2>2. The service</h2>
+<p>The service is an MCP (Model Context Protocol) server giving a compatible AI assistant read access to Israeli legislation as consolidated by the Open Law Book project of Hebrew Wikisource (CC BY-SA 4.0), and to legislative data of the Knesset. It provides <b>legal information, not legal advice</b>. Israel has no official consolidated text: the binding text is the publication in Reshumot, to which the service links. The consolidated text may lag behind recent amendments. Answers written by the AI assistant are the assistant's own. For a specific situation, consult an Israeli lawyer.</p>
+<p>The software is open source (MIT licence): anyone may host it for free. The subscription pays for hosting, the indexed databases, their daily updates and maintenance.</p>
+<h2>3. Free trial</h2>
+<p>The public address %(site)s/mcp can be used without sign-up, up to %(essai)d tool calls per day and per IP address. This limit may change.</p>
+<h2>4. Prices and payment</h2>
+<p>Three plans: <b>Personal, %(p1)s per month</b>; <b>Pro, %(p2)s per month</b>; <b>Pro yearly, %(p3)s per year</b>. Prices in shekels include VAT. Payment is taken by card through Stripe at subscription and then at each renewal. Any price change is announced by e-mail at least 30 days before it applies; you may cancel before then.</p>
+<h2>5. Access</h2>
+<p>After payment you can connect your assistant by signing in with your e-mail, or use a personal address shown once and sent by e-mail. The personal address is strictly personal: do not share it. It can be regenerated at any time from <a href="/compte">My account</a>, the old one then stops working. Each subscription includes, per day, up to %(c1)s tool calls (Personal) or %(c2)s (Pro), and at most 60 requests per minute; beyond that, access resumes the next day. The Pro plans allow professional use, issue invoices in the company's name and include priority e-mail support. In case of clear abuse (resale, public sharing of the address, mass extraction), Studjoow may suspend access after informing the subscriber.</p>
+<h2>6. Duration and cancellation</h2>
+<p>The subscription is a continuing transaction with no commitment, renewed at each period. You may cancel at any time from <a href="/compte">My account</a> or by e-mail to <a href="mailto:%(contact)s">%(contact)s</a>. The cancellation takes effect within 3 business days and you will not be charged for any period after it (Consumer Protection Law, 5741-1981, section 13D). If you cancel through the Stripe portal, access continues until the end of the period already paid; if you prefer that it stops earlier, write to us and the unused part is refunded. If a payment fails, access is suspended until it is settled, then the subscription ends.</p>
+<h2>7. Cancellation within 14 days</h2>
+<p>As a distance transaction, you may cancel within 14 days of the subscription (Consumer Protection Law, section 14C). As you asked for the service to start immediately, you pay only for the days used and Studjoow refunds the rest within 14 days, by the same means of payment. No cancellation fee is charged. Rights granted to you by the mandatory law of your country of residence are not affected.</p>
+<h2>8. Liability and availability</h2>
+<p>Studjoow strives to keep the service available and the data current, without guarantee of continuous availability or completeness. The data come from public sources that Studjoow does not publish. Studjoow is not responsible for answers written by the AI assistant you use, nor for decisions taken on their basis. Nothing in these terms limits rights you have under the law.</p>
+<h2>9. Personal data</h2>
+<p>See the <a href="/privacy">Privacy policy</a>.</p>
+<h2>10. Disputes and governing law</h2>
+<p>These terms are governed by the law of the State of Israel, without prejudice to more protective mandatory provisions of the consumer's country of residence. In case of difficulty, write first to <a href="mailto:%(contact)s">%(contact)s</a>: we answer within 7 business days. The competent courts are those of Tel Aviv-Jaffa, subject to the consumer's right to sue in the courts of their place of residence.</p>
+""" % {"site": SITE, "editeur": html.escape(EDITEUR), "contact": CONTACT, "essai": abonnement.ESSAI_PAR_JOUR,
+       "p1": abonnement.montant(ofs["particulier"]), "p2": abonnement.montant(ofs["pro"]), "p3": abonnement.montant(ofs["pro-an"]),
+       "c1": nombre(ofs["particulier"]["plafond"]), "c2": nombre(ofs["pro"]["plafond"])},
+        "Terms of service of the Mishpat by Studjoow subscription.")
+
+
+def legal():
+    return gabarit("Legal notice", """<h1>Legal notice.</h1>
+<h2>Publisher</h2>
+<p>%s.<br>E-mail: <a href="mailto:%s">%s</a>.</p>
+<h2>Hosting</h2>
+<p>Hetzner Online GmbH, Industriestrasse 25, 91710 Gunzenhausen, Germany, <a href="https://www.hetzner.com">hetzner.com</a>.</p>
+<h2>Data</h2>
+<p>Consolidated texts: <a href="%s">ספר החוקים הפתוח</a> (Open Law Book), Hebrew Wikisource contributors, licence <a href="%s">CC BY-SA 4.0</a>; the texts are reformatted (plain text, split by section) and shared under the same licence. Legislative data: Knesset OData API. Official publications: Reshumot. This service is not endorsed by Wikisource, the Wikimedia Foundation, the Knesset or the Israeli government.</p>
+<h2>Source code</h2>
+<p>Open source, MIT licence: <a href="%s">%s</a>.</p>
+<h2>Nature of the service</h2>
+<p>Legal information, not legal advice. For a specific situation, consult an Israeli lawyer.</p>
+""" % (html.escape(EDITEUR), CONTACT, CONTACT, OLB, CC, REPO, REPO), "Legal notice of Mishpat by Studjoow.")
+
+
+def privacy():
+    return gabarit("Privacy policy", """<h1>Privacy.</h1>
+<p class="maj">Effective 23 October 2026</p>
+<h2>Controller</h2>
+<p>%s. Contact: <a href="mailto:%s">%s</a>.</p>
+<h2>What we do not collect</h2>
+<p>No cookies, trackers or analytics. The legal questions sent by your assistant to the tools are neither stored nor linked to your identity. Fonts are served from this server.</p>
+<h2>Free trial</h2>
+<p>To apply the limit of %d requests per day, we keep a non-reversible fingerprint of your IP address (HMAC SHA-256 with a secret salt) and a daily counter. These rows are deleted automatically after 2 days.</p>
+<h2>Subscription</h2>
+<ul><li>Data: e-mail address, Stripe customer and subscription identifiers, status and dates of the subscription, SHA-256 fingerprint of your personal address (never the address itself), time of your request for immediate access.</li>
+<li>Assistant sign-in: name of the registered assistant (Claude, ChatGPT...), fingerprints of sign-in tokens (never the tokens themselves), kept 90 days at most; one-time sign-in code valid 10 minutes.</li>
+<li>Purposes: providing the service, sending your access and account messages, proving your request for immediate start.</li>
+<li>Retention: during the subscription, then 12 months after it ends, before automatic deletion. Payment records are kept by Stripe under its legal obligations.</li></ul>
+<h2>Recipients and processors</h2>
+<ul><li><b>Stripe</b> (payment): your card details are entered at Stripe and never pass through our servers.</li>
+<li><b>Resend</b> (e-mail delivery), United States.</li>
+<li><b>Hetzner Online GmbH</b> (hosting), Germany.</li></ul>
+<p>Server logs record neither your IP address nor your personal address.</p>
+<h2>Your rights</h2>
+<p>You may access, correct or delete your data, and object to its use, by writing to <a href="mailto:%s">%s</a>. You may also contact the Israeli Privacy Protection Authority (<a href="https://www.gov.il/en/departments/the_privacy_protection_authority">gov.il</a>) or, in the European Union, your data protection authority.</p>
+""" % (html.escape(EDITEUR), CONTACT, CONTACT, abonnement.ESSAI_PAR_JOUR, CONTACT, CONTACT), "Privacy policy of Mishpat by Studjoow.")
+
+
+CSS_OAUTH = """
+:root{--bg:#f2f3fb;--paper:#ffffff;--fg:#1b0b16;--ink:#3a3f4e;--muted:#7e8493;--line:#d8dbe4;--accent:#b1338a;--accent2:#e0539f;--soft:#eddaec;--deep:#040e30;--ko:#bf000f;--ok:#00a06d;
+  --serif:'Instrument Serif',Georgia,serif;--sans:'Plus Jakarta Sans',system-ui,-apple-system,'Segoe UI',sans-serif;--mono:'Geist Mono',ui-monospace,Menlo,monospace}
+*{box-sizing:border-box}html,body{height:100%}
+body{margin:0;font:16px/1.6 var(--sans);color:var(--fg);background:var(--deep);
+  background-image:radial-gradient(700px 420px at 12% 8%,rgba(177,51,138,.38),transparent 70%),radial-gradient(600px 400px at 95% 100%,rgba(224,83,159,.22),transparent 70%);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;padding:28px 16px}
+.carte-auth{width:100%;max-width:440px;background:var(--paper);border-radius:24px;padding:34px 32px 26px;box-shadow:0 40px 90px -30px rgba(0,0,0,.6)}
+.liaison{display:flex;align-items:center;justify-content:center;gap:12px;margin:0 0 22px}
+.liaison img{width:56px;height:56px;border-radius:16px;display:block}
+.liaison .assistant{width:56px;height:56px;border-radius:16px;background:var(--soft);color:var(--accent);display:flex;align-items:center;justify-content:center;
+  font:400 28px var(--serif)}
+.liaison .fil{display:flex;gap:5px}.liaison .fil i{width:6px;height:6px;border-radius:50%;background:var(--line)}
+.liaison .fil i:nth-child(2){background:var(--accent2)}
+h1{font:400 32px/1.08 var(--serif);text-align:center;margin:0 0 6px;letter-spacing:-.01em}
+.sous{text-align:center;color:var(--muted);font-size:14.5px;margin:0 0 24px}
+label.l{display:block;font:600 12px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:0 0 8px}
+.champ{width:100%;font:16px var(--sans);padding:14px 16px;border:1.5px solid var(--line);border-radius:12px;background:#fff;color:var(--fg);outline:none;transition:border-color .15s}
+.champ:focus{border-color:var(--accent)}
+.cases{display:flex;gap:8px;justify-content:space-between}
+.cases input{width:100%;max-width:52px;height:60px;text-align:center;font:600 26px var(--mono);border:1.5px solid var(--line);border-radius:12px;background:#fff;color:var(--fg);outline:none}
+.cases input:focus{border-color:var(--accent);box-shadow:0 0 0 4px rgba(177,51,138,.12)}
+.btn{display:block;width:100%;margin-top:16px;font:600 15.5px var(--sans);border:0;border-radius:12px;padding:15px 18px;cursor:pointer;background:var(--accent);color:#fff;
+  box-shadow:0 12px 26px -14px var(--accent);transition:transform .15s}
+.btn:hover{transform:translateY(-1px)}
+.alerte{background:#fdecee;color:var(--ko);border-radius:10px;padding:10px 14px;font-size:14px;margin:0 0 16px}
+.info{color:var(--ink);font-size:14.5px;margin:0 0 16px;text-align:center}
+.liens{display:flex;justify-content:center;gap:18px;flex-wrap:wrap;margin-top:20px;font-size:13.5px}
+.liens button{background:none;border:0;padding:0;font:inherit;color:var(--muted);text-decoration:underline;text-underline-offset:3px;cursor:pointer}
+.liens button:hover{color:var(--accent)}
+.garanties{display:flex;justify-content:center;gap:14px;flex-wrap:wrap;margin:22px 0 0;padding:16px 0 0;border-top:1px solid var(--line);font-size:12.5px;color:var(--muted)}
+.garanties span::before{content:"§ ";color:var(--accent);font-family:var(--serif)}
+.pied{margin-top:20px;font-size:12.5px;color:#8a90a3;text-align:center}.pied a{color:#c9cdd8}
+@media (max-width:420px){.carte-auth{padding:28px 20px 22px}.cases{gap:6px}.cases input{height:54px;font-size:22px}}
+"""
+
+
+def _masquer(email):
+    if "@" not in email:
+        return email
+    nom, dom = email.split("@", 1)
+    return nom[:2] + "•" * max(len(nom) - 2, 2) + "@" + dom
+
+
+def _page_auth(titre, contenu):
+    return """<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>%s · Mishpat by Studjoow</title><meta name="robots" content="noindex,nofollow"><meta name="theme-color" content="#040e30">
+<link rel="icon" href="/favicon.ico" sizes="48x48"><link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<style>%s%s</style></head><body>%s
+<p class="pied">Mishpat by Studjoow · <a href="/">mishpat.studjoow.com</a> · Legal information, not legal advice.</p></body></html>""" % (
+        html.escape(titre), FONTS, CSS_OAUTH, contenu)
+
+
+def page_oauth(nom_client, demande, etape="email", email="", erreur=None):
+    e = html.escape
+    alerte = '<p class="alerte">%s</p>' % e(erreur) if erreur else ""
+    cache = '<input type="hidden" name="demande" value="%s">' % e(demande)
+    initiale = e((nom_client or "A").strip()[:1].upper())
+
+    def lien(action, texte, extra=""):
+        return ('<form method="post" action="/oauth/authorize">%s<input type="hidden" name="action" value="%s">%s'
+                '<button type="submit">%s</button></form>' % (cache, action, extra, texte))
+
+    if etape == "code":
+        sous = "Code sent to <b>%s</b> if it matches an active subscription." % e(_masquer(email))
+        corps = """%s<form method="post" action="/oauth/authorize" id="f">%s<input type="hidden" name="action" value="code">
+<input type="hidden" name="code" id="code">
+<label class="l">6-digit code</label>
+<div class="cases" id="cases">%s</div>
+<button class="btn" type="submit">Connect</button></form>
+<div class="liens">%s%s</div>
+<script>
+(function(){var c=[].slice.call(document.querySelectorAll('#cases input')),h=document.getElementById('code');
+function maj(){h.value=c.map(function(i){return i.value}).join('')}
+c.forEach(function(i,k){
+ i.addEventListener('input',function(){var v=i.value.replace(/\\D/g,'');if(v.length>1){v.split('').forEach(function(d,j){if(c[k+j])c[k+j].value=d});(c[Math.min(k+v.length,5)]).focus()}else{i.value=v;if(v&&k<5)c[k+1].focus()}maj();if(h.value.length===6)document.getElementById('f').submit()});
+ i.addEventListener('keydown',function(ev){if(ev.key==='Backspace'&&!i.value&&k>0){c[k-1].focus()}});
+ i.addEventListener('paste',function(ev){var t=(ev.clipboardData||window.clipboardData).getData('text').replace(/\\D/g,'').slice(0,6);if(!t)return;ev.preventDefault();
+  t.split('').forEach(function(d,j){if(c[j])c[j].value=d});maj();(c[t.length]||c[5]).focus();if(t.length===6)document.getElementById('f').submit()});
+});c[0].focus();})();
+</script>""" % (alerte, cache, "".join('<input inputmode="numeric" autocomplete="%s" maxlength="1" aria-label="Digit %d">'
+                                       % ("one-time-code" if k == 0 else "off", k + 1) for k in range(6)),
+                lien("email", "Send a new code", '<input type="hidden" name="email" value="%s">' % e(email)),
+                lien("retour", "Change e-mail"))
+    elif etape == "cle":
+        sous = "Paste the personal address received after your payment."
+        corps = """%s<form method="post" action="/oauth/authorize">%s<input type="hidden" name="action" value="cle">
+<label class="l" for="a">Personal address</label>
+<input class="champ" id="a" name="adresse" placeholder="%s/mcp/..." autocomplete="off" required autofocus>
+<button class="btn" type="submit">Connect</button></form>
+<div class="liens">%s</div>""" % (alerte, cache, SITE, lien("retour", "Get a code by e-mail instead"))
+    else:
+        sous = "Enter the e-mail of your subscription: you will receive a sign-in code."
+        corps = """%s<form method="post" action="/oauth/authorize">%s<input type="hidden" name="action" value="email">
+<label class="l" for="m">Your e-mail</label>
+<input class="champ" id="m" type="email" name="email" value="%s" placeholder="you@example.com" autocomplete="email" required autofocus>
+<button class="btn" type="submit">Get my code</button></form>
+<div class="liens">%s</div>""" % (alerte, cache, e(email), lien("cle", "I have my personal address"))
+    contenu = """<main class="carte-auth">
+<div class="liaison"><img src="/static/icones/icone-192.png" alt="Mishpat by Studjoow"><span class="fil"><i></i><i></i><i></i></span><span class="assistant" aria-hidden="true">%s</span></div>
+<h1>Connect %s</h1>
+<p class="sous">%s</p>
+%s
+<div class="liens">%s</div>
+<div class="garanties"><span>No password</span><span>Code valid 10 min</span><span>Disconnect from <a href="/compte" style="color:inherit">your account</a></span></div>
+</main>""" % (initiale, e(nom_client), sous, corps, lien("refuser", "Cancel"))
+    return _page_auth("Sign in", contenu)
+
+
+def page_oauth_erreur(message):
+    return _page_auth("Sign-in failed", """<main class="carte-auth">
+<div class="liaison"><img src="/static/icones/icone-192.png" alt="Mishpat by Studjoow"></div>
+<h1>Sign-in failed</h1><p class="alerte" style="margin-top:16px">%s</p>
+<p class="info">Need help: <a href="mailto:%s">%s</a></p></main>""" % (html.escape(message), CONTACT, CONTACT))
