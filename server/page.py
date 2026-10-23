@@ -6,7 +6,7 @@ SITE = os.environ.get("MISHPAT_PUBLIC_URL", "https://mishpat.studjoow.com").rstr
 MCP_URL = SITE + "/mcp"
 OLB = "https://he.wikisource.org/wiki/%D7%95%D7%99%D7%A7%D7%99%D7%98%D7%A7%D7%A1%D7%98:%D7%A1%D7%A4%D7%A8_%D7%94%D7%97%D7%95%D7%A7%D7%99%D7%9D_%D7%94%D7%A4%D7%AA%D7%95%D7%97"
 CC = "https://creativecommons.org/licenses/by-sa/4.0/"
-REPO = os.environ.get("MISHPAT_REPO_URL", "")
+REPO = os.environ.get("MISHPAT_REPO_URL", "https://github.com/JohnJackHouzi/mishpat-israel")
 
 FONTS = """@font-face{font-family:'Instrument Serif';font-style:normal;font-weight:400;font-display:swap;src:url(/static/fonts/instrument-serif-normal-400.woff2) format('woff2')}
 @font-face{font-family:'Plus Jakarta Sans';font-style:normal;font-weight:400 700;font-display:swap;src:url(/static/fonts/plus-jakarta-sans-normal-400-700.woff2) format('woff2')}

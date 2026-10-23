@@ -10,7 +10,7 @@ KNESSET_DB = DATA / "knesset.sqlite"
 
 WIKI = "https://he.wikisource.org/wiki/"
 API = "https://he.wikisource.org/w/api.php"
-USER_AGENT = "mishpat-studjoow/1.0 (https://mishpat.studjoow.com; contact@studjoow.com)"
+USER_AGENT = "mishpat-studjoow/1.0 (https://mishpat.studjoow.com; https://github.com/JohnJackHouzi/mishpat-israel)"
 ATTRIBUTION = ("Consolidated text: Hebrew Wikisource, ספר החוקים הפתוח (Open Law Book), CC BY-SA 4.0, "
                "https://he.wikisource.org/wiki/ויקיטקסט:ספר_החוקים_הפתוח . Unofficial: the binding text is the "
                "publication in רשומות (Reshumot).")
