@@ -309,6 +309,11 @@ def knesset_law_id(con_l, con_k, q):
     return law, (r[0] if r else None)
 
 
+def pdf_url(path):
+    scheme, _, rest = (path or "").replace("\\", "/").partition("://")
+    return scheme + "://" + re.sub(r"/{2,}", "/", rest) if rest else scheme
+
+
 def fmt_date(s):
     return (s or "")[:10]
 
@@ -336,9 +341,10 @@ def cmd_historique(a):
             until, "" if src == "officielle" else " (amendments after this date are missing here; see A)"))
         if il:
             out.append("Name: %s" % il["Name"])
-            out.append("Status: %s ; basic law: %s ; first publication: %s ; latest publication: %s ; in force from %s%s" % (
+            out.append("Status: %s ; basic law: %s ; first publication: %s ; latest publication: %s%s%s" % (
                 il["LawValidityDesc"], "yes" if il["IsBasicLaw"] else "no", fmt_date(il["PublicationDate"]),
-                fmt_date(il["LatestPublicationDate"]), fmt_date(il["ValidityStartDate"]),
+                fmt_date(il["LatestPublicationDate"]),
+                " ; in force from " + fmt_date(il["ValidityStartDate"]) if il["ValidityStartDate"] else "",
                 " until %s" % fmt_date(il["ValidityFinishDate"]) if il["ValidityFinishDate"] else ""))
             names = [r[0] for r in con_k.execute("SELECT Name FROM KNS_IsraelLawName WHERE IsraelLawID=? AND Name!=?",
                                                  (kid, il["Name"]))]
@@ -351,9 +357,9 @@ def cmd_historique(a):
             if rows:
                 out.append("Amending laws recorded by the Knesset (%d):" % len(rows))
                 for r in rows:
-                    docs = [d[0] for d in con_k.execute(
-                        "SELECT FilePath FROM KNS_DocumentBill WHERE BillID=? AND GroupTypeDesc LIKE '%רשומות%' "
-                        "ORDER BY Id", (r["Id"],))]
+                    docs = [pdf_url(d[0]) for d in con_k.execute(
+                        "SELECT FilePath FROM KNS_DocumentBill WHERE BillID=? AND GroupTypeDesc='חוק - פרסום ברשומות' "
+                        "AND lower(FilePath) LIKE '%.pdf' ORDER BY Id", (r["Id"],))]
                     out.append("- %s | published %s | ספר החוקים %s, p. %s | %s%s" % (
                         r["Name"], fmt_date(r["PublicationDate"]) or "?", r["MagazineNumber"] or "?",
                         r["PageNumber"] or "?", r["AmendmentTypeDesc"] or r["BindingTypeDesc"] or "",

@@ -12,6 +12,7 @@ import sys
 import time
 import urllib.parse
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -51,12 +52,19 @@ def official(table):
 
 def mirror(table):
     tree = json.loads(get("https://huggingface.co/api/datasets/ZeAlenu/knesset-data/tree/main/data/" + table))
-    rows = []
-    for f in sorted(x["path"] for x in tree if x["path"].endswith(".jsonl")):
-        for line in get(MIRROR + "/resolve/main/" + urllib.parse.quote(f)).decode().splitlines():
-            if line.strip():
-                rows.append(json.loads(line))
-    return rows
+    cache = DATA / "knesset-miroir"
+    cache.mkdir(exist_ok=True)
+
+    def one(f):
+        local = cache / ("%s.%s" % (Path(f["path"]).name, (f.get("oid") or "")[:12]))
+        if not local.exists():
+            local.write_bytes(get(MIRROR + "/resolve/main/" + urllib.parse.quote(f["path"])))
+        return local.read_bytes().decode()
+
+    files = sorted((x for x in tree if x["path"].endswith(".jsonl")), key=lambda x: x["path"])
+    with ThreadPoolExecutor(8) as ex:
+        texts = list(ex.map(one, files))
+    return [json.loads(line) for t in texts for line in t.splitlines() if line.strip()]
 
 
 def mirror_date():
@@ -67,7 +75,7 @@ def mirror_date():
 
 
 def store(con, table, rows):
-    cols = []
+    cols = ["Id"] if not rows else []
     for r in rows:
         for k in r:
             if k not in cols and not k.startswith("@"):
