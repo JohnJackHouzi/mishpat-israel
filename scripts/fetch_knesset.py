@@ -41,13 +41,15 @@ def get(url, tries=4):
             time.sleep(3 * (n + 1))
 
 
-def official(table):
-    url, rows = ODATA + table + "?$top=1000", []
-    while url:
-        d = json.loads(get(url))
-        rows += d.get("value", [])
-        url = d.get("@odata.nextLink")
-    return rows
+def official(table, page=1000):
+    rows, skip = [], 0
+    while True:
+        d = json.loads(get("%s%s?$orderby=Id&$top=%d&$skip=%d" % (ODATA, table, page, skip)))
+        batch = d.get("value", [])
+        if not batch:
+            return rows
+        rows += batch
+        skip += len(batch)
 
 
 def mirror(table):
@@ -107,9 +109,6 @@ def main():
     ap.add_argument("--source", choices=["auto", "officielle", "miroir"], default="auto")
     a = ap.parse_args()
     DATA.mkdir(parents=True, exist_ok=True)
-    tmp = KNESSET_DB.with_suffix(".tmp")
-    tmp.unlink(missing_ok=True)
-    con = connect(tmp, readonly=False)
     source = a.source
     if source == "auto":
         try:
@@ -118,6 +117,14 @@ def main():
         except (PermissionError, OSError) as exc:
             print("API officielle injoignable (%s) : miroir Hugging Face" % exc)
             source = "miroir"
+            if KNESSET_DB.exists():
+                old = connect(KNESSET_DB)
+                if old.execute("SELECT v FROM meta WHERE k='knesset_source'").fetchone()[0] == "officielle":
+                    print("base existante issue de l'API officielle, plus récente que le miroir : conservée")
+                    return
+    tmp = KNESSET_DB.with_suffix(".tmp")
+    tmp.unlink(missing_ok=True)
+    con = connect(tmp, readonly=False)
     for t in TABLES:
         rows = official(t) if source == "officielle" else mirror(t)
         store(con, t, rows)
