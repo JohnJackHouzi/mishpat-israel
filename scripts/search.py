@@ -40,6 +40,9 @@ ALIASES = {
     "privacy protection (data security) regulations": "תקנות הגנת הפרטיות (אבטחת מידע)",
 }
 
+PRESENT = ("Present to the user: quote the exact Hebrew text above, then an unofficial translation into the language "
+           "of the conversation, then a plain explanation, then the sources (link and Reshumot PDF).")
+
 PREFIXES = ["", "ה", "ו", "ב", "ל", "מ", "ש", "כ", "וה", "וב", "ול", "ומ", "וש", "שה", "שב", "של", "מה", "בה",
             "לה", "כש", "וכ", "שמ"]
 
@@ -187,7 +190,7 @@ def cmd_article(a):
         out += ["- %s, %s: %s" % (p["citation"], p["name"], p["url"] or "(no link)") for p in rel]
     if pubs:
         out.append("Original publication: %s, %s: %s" % (pubs[0]["citation"], pubs[0]["name"], pubs[0]["url"]))
-    out += ["", DISCLAIMER, ATTRIBUTION]
+    out += ["", PRESENT, DISCLAIMER, ATTRIBUTION]
     if others and a.loi.strip() != law["title"]:
         out.append("Other texts with a close title: " + " ; ".join(r["title"] for r in others[:4]))
     return "\n".join(out)
